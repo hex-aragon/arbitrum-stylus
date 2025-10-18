@@ -37,12 +37,12 @@ impl SquiggleGenerator {
         Self { seed }
     }
 
-    // Main function that will be called by the contract
-    // 1. Generates the SVG
-    // 2. Base64 encodes the SVG
-    // 3. Generates the JSON metadata
-    // 4. Base64 encodes the metadata
-    // 5. Returns the encoded metadata as a string with the proper prefix (data:application/json;base64,)
+    // 컨트랙트에 의해 호출될 메인 함수
+    // 1. SVG를 생성
+    // 2. SVG를 Base64로 인코딩
+    // 3. JSON 메타데이터를 생성
+    // 4. 메타데이터를 Base64로 인코딩
+    // 5. 적절한 접두사(data:application/json;base64,)와 함께 인코딩된 메타데이터를 문자열로 반환
     pub fn metadata(&self) -> String {
         let svg = self.svg();
         let base64_svg = base64_encode(&svg);
@@ -57,15 +57,15 @@ impl SquiggleGenerator {
         final_metadata
     }
 
-    // Generates the actual SVG string `<svg ... />`
-    // This is the image generation logic
+    // 실제 SVG 문자열 `<svg ... />`를 생성
+    // 이것이 이미지 생성 로직입니다
     fn svg(&self) -> String {
-        // Generate the random parameters for the SVG
-        // includes x_offsets, y_coordinates, stroke_width, and gradient_type
+        // SVG에 대한 무작위 매개변수를 생성
+        // x_offsets, y_coordinates, stroke_width, gradient_type 포함
         let params = self.generate_parameters();
         let mut svg = String::new();
 
-        // Write the SVG header
+        // SVG 헤더 작성
         writeln!(svg, r#"<svg width='{}' height='{}' viewBox='0 0 {} {}' xmlns='http://www.w3.org/2000/svg'>"#, SVG_WIDTH, SVG_HEIGHT, SVG_WIDTH, SVG_HEIGHT).unwrap();
         writeln!(
             svg,
@@ -74,29 +74,29 @@ impl SquiggleGenerator {
         )
         .unwrap();
 
-        // Generate the SVG `path` element to connect all the points together
+        // 모든 점을 연결하기 위한 SVG `path` 요소 생성
         let path_data = self.generate_oscillations_path(&params.x_offsets, &params.y_coordinates);
         writeln!(svg, r#"<path d="{}" stroke-width="{}" fill="none" stroke="url(#gradient)" stroke-linecap="round"/>"#, path_data, params.stroke_width).unwrap();
 
-        // Generate the gradient for the SVG
+        // SVG용 그라디언트 생성
         let gradient = self.generate_gradient(params.gradient_type);
         writeln!(svg, r#"{}"#, gradient).unwrap();
 
-        // Close the SVG tag
+        // SVG 태그 닫기
         writeln!(svg, r#"</svg>"#).unwrap();
 
         svg
     }
 
-    // Generates the random parameters for the SVG
+    // SVG에 대한 무작위 매개변수 생성
     fn generate_parameters(&self) -> SquiggleParameters {
-        // First three bytes are used to calculate number of oscillations, stroke width, and gradient type
+        // 처음 세 바이트는 진동 수, 스트로크 너비, 그라디언트 타입을 계산하는 데 사용됨
         let num_oscillations = self.map_byte(self.seed[0], MIN_OSCILLATIONS, MAX_OSCILLATIONS);
         let stroke_width = self.map_byte(self.seed[1], MIN_STROKE_WIDTH, MAX_STROKE_WIDTH);
         let gradient_type = self.seed[2] % 3;
 
-        // Upto next 15 bytes are used to calculate the X offset of each oscillation
-        // i.e. the offset from the previous oscillation's X coordinate
+        // 다음 최대 15바이트는 각 진동의 X 오프셋을 계산하는 데 사용됨
+        // 즉, 이전 진동의 X 좌표로부터의 오프셋
         let mut x_offsets = [0i32; MAX_OSCILLATIONS];
         for i in 0..num_oscillations as usize {
             let byte_idx = 3 + i as usize;
@@ -104,13 +104,13 @@ impl SquiggleGenerator {
             x_offsets[i] = x_offset;
         }
 
-        // Upto next 15 bytes are used to calculate the Y coordinates of each oscillation
-        // i.e. how high or low the oscillation is
+        // 다음 최대 15바이트는 각 진동의 Y 좌표를 계산하는 데 사용됨
+        // 즉, 진동이 얼마나 높거나 낮은지
         let mut y_coordinates = [0i32; MAX_OSCILLATIONS];
         for i in 0..num_oscillations as usize {
             let byte_idx = 17 + i;
             let y_coordinate = self.map_byte(self.seed[byte_idx], MIN_AMPLITUDE, MAX_AMPLITUDE);
-            // alternate between going up and down
+            // 위아래 번갈아가기
             let sign = if i % 2 == 0 { -1 } else { 1 };
             y_coordinates[i] = sign * y_coordinate as i32;
         }
@@ -123,7 +123,7 @@ impl SquiggleGenerator {
         }
     }
 
-    // Generates the SVG `path` element to connect all the points together
+    // 모든 점을 연결하기 위한 SVG `path` 요소 생성
     fn generate_oscillations_path(&self, x_offsets: &[i32], y_coordinates: &[i32]) -> String {
         let mut path = String::new();
 
@@ -133,17 +133,17 @@ impl SquiggleGenerator {
 
         write!(path, "M {},{} ", current_x, center_y).unwrap();
 
-        // create a smooth curve between each (x,y) point
+        // 각 (x,y) 점 사이에 부드러운 곡선 생성
         for (&x_offset, &y_coordinate) in x_offsets.iter().zip(y_coordinates.iter()) {
             let next_x = current_x + x_offset;
 
-            // control points calculation - use integer division
+            // 제어점 계산 - 정수 나눗셈 사용
             let cp1_x = current_x + (x_offset / 3);
             let cp1_y = center_y + y_coordinate;
             let cp2_x = current_x + (2 * x_offset / 3);
             let cp2_y = center_y + y_coordinate;
 
-            // cubic bezier curve
+            // 3차 베지어 곡선
             write!(
                 path,
                 "C {},{} {}, {} {},{} ",
@@ -157,18 +157,18 @@ impl SquiggleGenerator {
         path
     }
 
-    // Generates the gradient for the SVG
-    // Picks from 3 options based on what value was chosen for gradient_type
+    // SVG용 그라디언트 생성
+    // gradient_type에 대해 선택된 값에 따라 3가지 옵션 중 선택
     fn generate_gradient(&self, gradient_type: u8) -> String {
         let mut gradient = String::new();
         let rainbow_gradient = [
-            ("0.00", (255, 0, 0)),    // Red
-            ("16.67", (255, 142, 0)), // Orange
-            ("33.33", (255, 239, 0)), // Yellow
-            ("50.00", (0, 241, 29)),  // Green
-            ("66.67", (0, 255, 255)), // Cyan
-            ("83.33", (0, 64, 255)),  // Blue
-            ("100.0", (128, 0, 255)), // Purple
+            ("0.00", (255, 0, 0)),    // 빨강
+            ("16.67", (255, 142, 0)), // 주황
+            ("33.33", (255, 239, 0)), // 노랑
+            ("50.00", (0, 241, 29)),  // 초록
+            ("66.67", (0, 255, 255)), // 청록
+            ("83.33", (0, 64, 255)),  // 파랑
+            ("100.0", (128, 0, 255)), // 보라
         ];
 
         let sunset_gradient = [
@@ -212,7 +212,7 @@ impl SquiggleGenerator {
         gradient
     }
 
-    // Maps a single byte to a number between min and max
+    // 단일 바이트를 min과 max 사이의 숫자로 매핑
     fn map_byte(&self, byte: u8, min: usize, max: usize) -> i32 {
         (min + (byte as usize * (max - min) / 255)) as i32
     }
