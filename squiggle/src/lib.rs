@@ -87,9 +87,7 @@ impl Squiggle {
 impl Squiggle {
     #[constructor]
     fn constructor(&mut self, mint_price: U256) -> Result<(), SquiggleError> {
-    
         self.mint_price.set(mint_price);
-    
         Ok(())
     }
 
